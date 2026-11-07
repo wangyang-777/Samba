@@ -1,0 +1,15 @@
+# Local datasets, pretrained weights, and training outputs
+/rgbd_dataset/
+/models/pretrained/
+/checkpoints/
+/smoke_predictions/
+/train_loss_rgbd.txt
+/Smeasure_rgbd.txt
+
+# Generated Python and extension build files
+__pycache__/
+*.py[cod]
+*.so
+*.o
+build/
+*.egg-info/

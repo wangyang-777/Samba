@@ -17,8 +17,6 @@ import random
 from Smeasure import S_object,S_region
 from utils.init_func import group_weight
 import torch.nn as nn
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
-os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
 p = OrderedDict()
 p['lr'] = 1e-4  # Learning rate
 p['wd'] = 0.01  # Weight decay
@@ -53,15 +51,16 @@ parser.add_argument('--input_size', type=int, default=448)
 parser.add_argument('--batch_size', type=int, default=2)
 parser.add_argument('--num_thread', type=int, default=8)
 parser.add_argument('--model_path', type=str, default='')
+parser.add_argument('--profile', action='store_true', help='measure FLOPs before training')
+parser.add_argument('--max_steps', type=int, default=0, help='stop after this many training batches; 0 runs full epochs')
 parser.add_argument('--local_rank', default=-1, type=int, help='node rank for distributed training')
-parser.add_argument('--test_dataset', type=list, default=['NJU2K'])
+parser.add_argument('--test_dataset', nargs='+', default=['NJU2K'])
 # Misc
 parser.add_argument('--mode', type=str, default='train', choices=['train', 'test'])
 config = parser.parse_args()
 
-config.save_fold = config.save_fold + '/' + 'Samba/rgbd_datasets'
-if not os.path.exists("%s" % (config.save_fold)):
-    os.mkdir("%s" % (config.save_fold))
+config.save_fold = os.path.join(config.save_fold, 'Samba/rgbd_datasets')
+os.makedirs(config.save_fold, exist_ok=True)
 
 def test(test_loader,model,epoch,save_path):
     global best_sm,best_epoch
@@ -138,13 +137,16 @@ if __name__ == '__main__':
 
     if config.cuda:
         model = model.cuda()
-    
-    # 创建一个随机输入
-    input1, input2 = torch.randn(1, 3, 448, 448), torch.randn(1, 3, 448, 448)
-    input1, input2 = input1.cuda(), input2.cuda()
-    # 计算 FLOPs 和参数量
-    flops, params = profile(model, inputs=(input1, input2))
-    print(f"FLOPs: {flops}, Params: {params}")
+    if config.model_path:
+        model.load_pretrain_model(config.model_path)
+        print(f'Loaded model checkpoint: {config.model_path}')
+
+    if config.profile:
+        input1, input2 = torch.randn(1, 3, config.input_size, config.input_size), torch.randn(1, 3, config.input_size, config.input_size)
+        if config.cuda:
+            input1, input2 = input1.cuda(), input2.cuda()
+        flops, params = profile(model, inputs=(input1, input2))
+        print(f"FLOPs: {flops}, Params: {params}")
 
     params_list = []
     params_list = group_weight(params_list, model, nn.BatchNorm2d, p['lr'])
@@ -166,6 +168,7 @@ if __name__ == '__main__':
     iter_num = len(dataloader)
     loss_wirte = []
     sm_wirte = []
+    steps_done = 0
     for epoch in range(config.epoch):
         loss_all = 0
         aveGrad = 0
@@ -191,17 +194,26 @@ if __name__ == '__main__':
                 optimizer.zero_grad()  # 清除累积的梯度
 
             loss_all += loss.data
+            steps_done += 1
             if i % showEvery == 0:
                 print(
                     '%s || epoch: [%2d/%2d], iter: [%5d/%5d]  Loss || sum : %10.4f' % (
                         datetime.datetime.now(), epoch+1, config.epoch, i+1, iter_num, loss_all / (i + 1)))
                 print('Learning rate: ' + str(optimizer.param_groups[0]['lr']))
-            
+            if config.max_steps and steps_done >= config.max_steps:
+                optimizer.step()
+                optimizer.zero_grad()
+                checkpoint_path = os.path.join(config.save_fold, 'smoke_step.pth')
+                torch.save(model.state_dict(), checkpoint_path)
+                print(f'Smoke training completed: {steps_done} batch(es), checkpoint: {checkpoint_path}')
+                break
             if i == iter_num - 1:
                 print(
                     '%s || epoch: [%2d/%2d], iter: [%5d/%5d]  Loss || sum : %10.4f' % (
                         datetime.datetime.now(), epoch+1, config.epoch, i+1, iter_num,loss_all / (i + 1)))
                 print('Learning rate: ' + str(optimizer.param_groups[0]['lr']))
+        if config.max_steps and steps_done >= config.max_steps:
+            break
         epoch_loss = loss_all / len(dataloader)
         loss_wirte.append(epoch_loss)
         scheduler.step()
@@ -216,5 +228,3 @@ if __name__ == '__main__':
             train_sm.write(str(sm_wirte))
 
     
-
-

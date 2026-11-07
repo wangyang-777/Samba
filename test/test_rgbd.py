@@ -20,8 +20,9 @@ parser.add_argument('--input_size', type=int, default=448)
 parser.add_argument('--spatial_ckpt', type=str, default=None)
 parser.add_argument('--depth_ckpt', type=str, default=None)
 parser.add_argument('--model_path', type=str, default='./checkpoints/Samba/rgbd_datasets/Samba_rgbd.pth')
-parser.add_argument('--test_dataset', type=list, default=['DUT-RGBD','NJU2K','NLPR','SIP','STERE'])
+parser.add_argument('--test_dataset', nargs='+', default=['DUT-RGBD','NJU2K','NLPR','SIP','STERE'])
 parser.add_argument('--testsavefold', type=str, default='./Samba')
+parser.add_argument('--max_samples', type=int, default=0, help='stop after this many batches; 0 tests all')
 
 # Misc
 parser.add_argument('--mode', type=str, default='test', choices=['train', 'test'])
@@ -54,25 +55,28 @@ if not os.path.exists(config.testsavefold):
 
 for i, data_batch in enumerate(test_loader):
     print("progress {}/{}\n".format(i + 1, len(test_loader)))
-    image, depth, depth, name, split, size = data_batch['image'], data_batch['depth'], data_batch['depth'], \
+    image, depth, name, split, size = data_batch['image'], data_batch['depth'], \
                                             data_batch['name'], data_batch['split'], data_batch['size']
     dataset = data_batch['dataset']
 
     if config.cuda:
-        image, depth, depth = image.cuda(), depth.cuda(), depth.cuda()
+        image, depth = image.cuda(), depth.cuda()
     with torch.no_grad():
 
         out, saliency = model(image, depth)
 
-        for i in range(config.test_batch_size):
-            presavefold = os.path.join(config.testsavefold, dataset[i], split[i])
+        for j in range(config.test_batch_size):
+            presavefold = os.path.join(config.testsavefold, dataset[j], split[j])
 
             if not os.path.exists(presavefold):
                 os.makedirs(presavefold)
-            pre1 = torch.nn.Sigmoid()(out[0][i])
+            pre1 = torch.nn.Sigmoid()(out[0][j])
             pre1 = (pre1 - torch.min(pre1)) / (torch.max(pre1) - torch.min(pre1))
             pre1 = np.squeeze(pre1.cpu().data.numpy()) * 255
             pre1 = cv2.resize(pre1, (int(size[0][1]), int(size[0][0])))
-            cv2.imwrite(presavefold + '/' + name[i], pre1)
+            cv2.imwrite(presavefold + '/' + name[j], pre1)
+
+    if config.max_samples and i + 1 >= config.max_samples:
+        break
 
            
