@@ -1,8 +1,11 @@
 # Local datasets, pretrained weights, and training outputs
 /rgbd_dataset/
+/rgbd_dataset
 /models/pretrained/
+/models/pretrained
 /checkpoints/
 /smoke_predictions/
+/depth_v1_train.log
 /train_loss_rgbd.txt
 /Smeasure_rgbd.txt
 

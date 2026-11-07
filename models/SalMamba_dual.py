@@ -4,10 +4,12 @@ import torch.nn.functional as F
 
 from .encoders.dual_vmamba import vssm_small as backbone
 from .decoders.MambaDecoder import MambaDecoder
+from .depth_quality import DepthQualityEnhancer
 
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
+        self.depth_enhancer = DepthQualityEnhancer()
         self.backbone = backbone()
         self.channels = self.channels = [96, 192, 384, 768]
         self.decoder = MambaDecoder(img_size=[448, 448],
@@ -16,12 +18,15 @@ class Model(nn.Module):
                                     depths=[4, 4, 4, 4],
                                     embed_dim=self.channels[0], 
                                     deep_supervision=False)
-    def forward(self, rgb, modal_x):
+    def forward(self, rgb, modal_x, return_aux=False):
         orisize = rgb.shape
-        x, saliency = self.backbone(rgb, modal_x)
+        enhanced_depth, aux_loss = self.depth_enhancer(rgb, modal_x, train_aux=return_aux)
+        x, saliency = self.backbone(rgb, enhanced_depth)
         out = self.decoder.forward(x)
         out = F.interpolate(out, size=orisize[2:], mode='bilinear', align_corners=False)
         saliency = F.interpolate(saliency, size=orisize[2:], mode='bilinear', align_corners=False)
+        if return_aux:
+            return out, saliency, aux_loss
         return out, saliency
     
     def load_pretrain_model(self, model_path):
@@ -42,4 +47,3 @@ if __name__ == '__main__':
     print(model)
     print(out.shape)
         
-

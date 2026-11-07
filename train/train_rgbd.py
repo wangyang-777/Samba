@@ -53,6 +53,7 @@ parser.add_argument('--num_thread', type=int, default=8)
 parser.add_argument('--model_path', type=str, default='')
 parser.add_argument('--profile', action='store_true', help='measure FLOPs before training')
 parser.add_argument('--max_steps', type=int, default=0, help='stop after this many training batches; 0 runs full epochs')
+parser.add_argument('--depth_aux_weight', type=float, default=0.2, help='weight of synthetic depth repair and quality losses')
 parser.add_argument('--local_rank', default=-1, type=int, help='node rank for distributed training')
 parser.add_argument('--test_dataset', nargs='+', default=['NJU2K'])
 # Misc
@@ -184,8 +185,9 @@ if __name__ == '__main__':
                 continue
             if config.cuda:
                 image, label, depth = image.cuda(), label.cuda(), depth.cuda()
-            out, saliency = model(image, depth)
+            out, saliency, depth_aux_loss = model(image, depth, return_aux=True)
             loss = structure_loss(out, label) + structure_loss(saliency, label)
+            loss = loss + config.depth_aux_weight * depth_aux_loss
             loss.backward()
 
 
