@@ -8,6 +8,7 @@ import math
 import time
 from models.encoders.vmamba import Backbone_VSSM, SaliencyMambaBlock, ConcatMambaFusionBlock
 from models.HA import HA
+from models.depth_feature_fusion import DepthResidualFusion
 
 class RGBXMamba(nn.Module):
     def __init__(self, 
@@ -57,6 +58,15 @@ class RGBXMamba(nn.Module):
             ) 
 
         self.ha = HA()
+
+        # Human stages 2 and 3 correspond to zero-based feature indices 1 and 2.
+        # Preserve the RNG stream used by the existing backbone and decoder so
+        # common parameters keep the same initialization as experiment A.
+        with torch.random.fork_rng(devices=[]):
+            self.depth_residual_fusion = nn.ModuleDict({
+                str(i): DepthResidualFusion(dims * (2 ** i))
+                for i in (1, 2)
+            })
         
         # absolute position embedding
         if self.ape:
@@ -97,6 +107,10 @@ class RGBXMamba(nn.Module):
                 resized_gt = F.interpolate(saliency, size=(H, W), mode='bilinear', align_corners=False)
                 resized_gt  = (resized_gt  >= 0.3).float()
                 out_rgb = self.saliency_mamba[i](out_rgb, resized_gt)
+
+            if i in (1, 2):
+                out_e = outs_e[i].permute(0, 2, 3, 1).contiguous()
+                out_rgb = self.depth_residual_fusion[str(i)](out_rgb, out_e)
 
             if i == 3:
                 out_e = outs_e[i].permute(0, 2, 3, 1).contiguous()

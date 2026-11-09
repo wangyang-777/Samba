@@ -152,6 +152,18 @@ if __name__ == '__main__':
     params_list = []
     params_list = group_weight(params_list, model, nn.BatchNorm2d, p['lr'])
 
+    # The inherited group_weight helper only collects standard layer weights;
+    # explicitly register the new custom residual scales so they can learn.
+    params_list.append(dict(
+        params=[block.scale for block in model.backbone.depth_residual_fusion.values()],
+        weight_decay=0.0,
+        lr=p['lr'],
+    ))
+    optimizer_parameter_ids = {id(parameter) for group in params_list for parameter in group['params']}
+    assert all(id(parameter) in optimizer_parameter_ids
+               for parameter in model.backbone.depth_residual_fusion.parameters())
+    print('Stage 2/3 fusion parameters registered in optimizer')
+
     optimizer = torch.optim.AdamW(params_list, lr=p['lr'], betas=(0.9, 0.999),weight_decay=p['wd'])
 
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
