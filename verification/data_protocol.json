@@ -1,0 +1,74 @@
+{
+  "source": "/home/wmy/project/Datasets/RGBD_dataset",
+  "selection_set": "NJU2K (500), matching prior Samba/A selection",
+  "splits": {
+    "train_DUT": {
+      "source": "/home/wmy/project/Datasets/RGBD_dataset/RGB-D_train",
+      "samples": 2985,
+      "depth_modes": {
+        "L": 2984,
+        "RGB": 1
+      },
+      "constant_depths_after_reading": 0,
+      "manifest_sha256": "55d0da12650e1d1bf6ad1df50813db813117f89fbcd184253c926886c0223bbb",
+      "path_size_mtime_fingerprint": "43123e5f3967941dd41b79bfd43000df87df3cfffbe8b84fd54dfff0520731e9"
+    },
+    "DUT-RGBD": {
+      "source": "/home/wmy/project/Datasets/RGBD_dataset/RGB-D_test/DUT",
+      "samples": 400,
+      "depth_modes": {
+        "L": 400
+      },
+      "constant_depths_after_reading": 0,
+      "manifest_sha256": "9768880ee96d1ab1aa6ce8e32c791980c30ebd7902d96acef328db1baae4c1f1",
+      "path_size_mtime_fingerprint": "23bda51d5a81a4ba9add528bf15e3b4d45e57de0e40eaebf742b4a8f5f7ffb17"
+    },
+    "NJU2K": {
+      "source": "/home/wmy/project/Datasets/RGBD_dataset/RGB-D_test/NJUD",
+      "samples": 500,
+      "depth_modes": {
+        "L": 500
+      },
+      "constant_depths_after_reading": 0,
+      "manifest_sha256": "71ee997adaf6d9d82066e00d5dd1ade5aa61348ae4d6b5b85647da1c873cbc5c",
+      "path_size_mtime_fingerprint": "20a16401a19f6380a0f52929b320ebd535dd76bce60acbaa320e537379440ee3"
+    },
+    "NLPR": {
+      "source": "/home/wmy/project/Datasets/RGBD_dataset/RGB-D_test/NLPR",
+      "samples": 300,
+      "depth_modes": {
+        "L": 300
+      },
+      "constant_depths_after_reading": 0,
+      "manifest_sha256": "5b8fd99c89254bbe7e17595817709463941ee57b660dacbda5123091bb877fac",
+      "path_size_mtime_fingerprint": "b6496194c2be2cd0436b6dd6d49c8916dcd20d9260419bbfcce4038f33f4ff69"
+    },
+    "SIP": {
+      "source": "/home/wmy/project/Datasets/RGBD_dataset/RGB-D_test/SIP",
+      "samples": 929,
+      "depth_modes": {
+        "L": 929
+      },
+      "constant_depths_after_reading": 0,
+      "manifest_sha256": "74095a28cdab324b55f62d3b01f2e9406e36134d62d0da612cee39637c5d3d7a",
+      "path_size_mtime_fingerprint": "0412cf389f8b992be5602fe568601eb0bb2c73343df38331ee1398c3926cf27a"
+    },
+    "STERE": {
+      "source": "/home/wmy/project/Datasets/RGBD_dataset/RGB-D_test/STERE",
+      "samples": 1000,
+      "depth_modes": {
+        "L": 1000
+      },
+      "constant_depths_after_reading": 0,
+      "manifest_sha256": "72007e298cb1bc122b9d8014f12d4d67383d03257e61fbdb40ab9e5a013b134d",
+      "path_size_mtime_fingerprint": "b9c8f8aae1a84beb287385da271050b998c80bfcf553db8b00c90f6dce6b5342"
+    }
+  },
+  "training_test_stem_overlap": {
+    "DUT-RGBD": 0,
+    "NJU2K": 0,
+    "NLPR": 0,
+    "SIP": 0,
+    "STERE": 0
+  }
+}

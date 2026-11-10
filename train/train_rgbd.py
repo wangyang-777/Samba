@@ -17,6 +17,10 @@ import random
 from Smeasure import S_object,S_region
 from utils.init_func import group_weight
 import torch.nn as nn
+import hashlib
+import json
+from pathlib import Path
+import subprocess
 p = OrderedDict()
 p['lr'] = 1e-4  # Learning rate
 p['wd'] = 0.01  # Weight decay
@@ -132,6 +136,26 @@ if __name__ == '__main__':
     dataset_test = Dataset(datasets=config.test_dataset, transform=composed_transforms_te, mode='test')
     test_loader = data.DataLoader(dataset_test, batch_size=1, num_workers=config.num_thread,drop_last=True, shuffle=False)
     print("Testing Set, DataSet Size:{}, DataLoader Size:{}".format(len(dataset_test), len(test_loader)))
+    protocol_path = Path('rgbd_dataset/data_protocol.json')
+    protocol = json.loads(protocol_path.read_text())
+    if Path(protocol['source']).resolve() != Path('/home/wmy/project/Datasets/RGBD_dataset').resolve():
+        raise RuntimeError('This experiment must use the verified ACINet_best data source')
+    pretrain_path = Path('models/pretrained/vmamba/vssmsmall_dp03_ckpt_epoch_238.pth')
+    digest = hashlib.sha256()
+    with pretrain_path.open('rb') as stream:
+        for chunk in iter(lambda: stream.read(8 * 1024 * 1024), b''):
+            digest.update(chunk)
+    run_config = dict(vars(config), seed=1024, learning_rate=p['lr'], weight_decay=p['wd'],
+                      accumulation_steps=4, loss_divided_by_accumulation=False,
+                      scheduler='CosineAnnealingLR(T_max=10, eta_min=1e-5)',
+                      variant='original_Samba_baseline',
+                      code_commit=subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip(),
+                      visible_gpu=os.environ.get('CUDA_VISIBLE_DEVICES'),
+                      training_samples=len(dataset_train), selection_samples=len(dataset_test),
+                      pretrained_sha256=digest.hexdigest(), data_protocol=protocol)
+    with open(os.path.join(config.save_fold, 'run_config.json'), 'w') as stream:
+        json.dump(run_config, stream, indent=2)
+    print('Training configuration:', json.dumps({key: value for key, value in run_config.items() if key != 'data_protocol'}))
 
     model = Model()
 
@@ -192,6 +216,8 @@ if __name__ == '__main__':
             if (i + 1) % accumulation_steps == 0:
                 optimizer.step()  # 更新参数
                 optimizer.zero_grad()  # 清除累积的梯度
+                if i == accumulation_steps - 1:
+                    print(f'Epoch {epoch+1}: first optimizer update completed, batch {i+1}, loss={loss.item():.6f}')
 
             loss_all += loss.data
             steps_done += 1
@@ -201,7 +227,8 @@ if __name__ == '__main__':
                         datetime.datetime.now(), epoch+1, config.epoch, i+1, iter_num, loss_all / (i + 1)))
                 print('Learning rate: ' + str(optimizer.param_groups[0]['lr']))
             if config.max_steps and steps_done >= config.max_steps:
-                optimizer.step()
+                if (i + 1) % accumulation_steps:
+                    optimizer.step()
                 optimizer.zero_grad()
                 checkpoint_path = os.path.join(config.save_fold, 'smoke_step.pth')
                 torch.save(model.state_dict(), checkpoint_path)
