@@ -1,0 +1,13 @@
+{
+  "checkpoint": "/home/wmy/project/aug_deepqulity/experiments_acinet_2026-11-10/smoke_A/Samba/rgbd_datasets/smoke_step.pth",
+  "strict_checkpoint_reload": true,
+  "real_selection_sample_inference": true,
+  "formerly_saturated_example": "/home/wmy/project/Datasets/RGBD_dataset/RGB-D_train/depth/0002.png",
+  "source_depth_range": [
+    0,
+    254
+  ],
+  "recovered_depth_std": 0.31166937947273254,
+  "selection_samples": 500,
+  "model_parameters": 67347900
+}
