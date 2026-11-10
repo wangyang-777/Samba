@@ -1,0 +1,25 @@
+{
+  "a_common_initialization_tensors": 865,
+  "identity_at_initialization": true,
+  "new_parameters": 202952,
+  "trained_adapters": {
+    "stage_1": {
+      "up_weight_mean_abs": 0.00013915274757891893,
+      "down_weight_change": 7.43865966796875e-05
+    },
+    "stage_2": {
+      "up_weight_mean_abs": 0.00015297654317691922,
+      "down_weight_change": 7.341848686337471e-05
+    },
+    "stage_3": {
+      "up_weight_mean_abs": 0.00015134054410737008,
+      "down_weight_change": 7.39414244890213e-05
+    },
+    "stage_4": {
+      "up_weight_mean_abs": 0.00012778981181327254,
+      "down_weight_change": 7.44406133890152e-05
+    }
+  },
+  "strict_checkpoint_reload": true,
+  "real_sample_inference": true
+}

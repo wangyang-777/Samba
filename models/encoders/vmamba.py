@@ -4125,7 +4125,7 @@ class Backbone_VSSM(VSSM):
         except Exception as e:
             print(f"Failed loading checkpoint form {ckpt}: {e}")
 
-    def forward(self, x):
+    def forward(self, x, depth_adapters=None):
         def layer_forward(l, x):
             x = l.blocks(x)
             y = l.downsample(x)
@@ -4134,6 +4134,8 @@ class Backbone_VSSM(VSSM):
         x = self.patch_embed(x)
         outs = []
         for i, layer in enumerate(self.layers):
+            if depth_adapters is not None:
+                x = depth_adapters[i](x)
             o, x = layer_forward(layer, x) # (B, H, W, C)
             if i in self.out_indices:
                 norm_layer = getattr(self, f'outnorm{i}')

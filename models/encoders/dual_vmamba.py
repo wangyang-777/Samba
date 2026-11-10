@@ -8,6 +8,7 @@ import math
 import time
 from models.encoders.vmamba import Backbone_VSSM, SaliencyMambaBlock, ConcatMambaFusionBlock
 from models.HA import HA
+from models.depth_adapter import DepthAdapter
 
 class RGBXMamba(nn.Module):
     def __init__(self, 
@@ -57,6 +58,11 @@ class RGBXMamba(nn.Module):
             ) 
 
         self.ha = HA()
+        # Preserve the random initialization of all original A parameters.
+        with torch.random.fork_rng(devices=[]):
+            self.depth_adapters = nn.ModuleList(
+                DepthAdapter(dims * (2 ** i)) for i in range(4)
+            )
         
         # absolute position embedding
         if self.ape:
@@ -83,7 +89,7 @@ class RGBXMamba(nn.Module):
         outs_fused = []
         
         outs_rgb = self.vssm_r(x_rgb) # B x C x H x W
-        outs_e = self.vssm_r(x_e) # B x C x H x W
+        outs_e = self.vssm_r(x_e, depth_adapters=self.depth_adapters)
 
         saliency = self.pred_saliency(F.interpolate(outs_rgb[3], scale_factor=8, mode='bilinear', align_corners=False))
         guide_saliency = torch.nn.Sigmoid()(saliency)

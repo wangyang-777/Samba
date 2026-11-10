@@ -17,6 +17,8 @@ import random
 from Smeasure import S_object,S_region
 from utils.init_func import group_weight
 import torch.nn as nn
+import json
+import subprocess
 p = OrderedDict()
 p['lr'] = 1e-4  # Learning rate
 p['wd'] = 0.01  # Weight decay
@@ -133,6 +135,16 @@ if __name__ == '__main__':
     dataset_test = Dataset(datasets=config.test_dataset, transform=composed_transforms_te, mode='test')
     test_loader = data.DataLoader(dataset_test, batch_size=1, num_workers=config.num_thread,drop_last=True, shuffle=False)
     print("Testing Set, DataSet Size:{}, DataLoader Size:{}".format(len(dataset_test), len(test_loader)))
+    run_config = dict(vars(config), seed=1024, learning_rate=p['lr'], weight_decay=p['wd'],
+                      accumulation_steps=4, loss_divided_by_accumulation=False,
+                      scheduler='CosineAnnealingLR(T_max=10, eta_min=1e-5)',
+                      code_commit=subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip(),
+                      visible_gpu=os.environ.get('CUDA_VISIBLE_DEVICES'),
+                      training_samples=len(dataset_train), selection_samples=len(dataset_test),
+                      selection_set='NJU2K (used for checkpoint selection)', experiment='depth-adapter-v4')
+    with open(os.path.join(config.save_fold, 'run_config.json'), 'w') as stream:
+        json.dump(run_config, stream, indent=2)
+    print('Training configuration:', json.dumps(run_config))
 
     model = Model()
 
@@ -151,6 +163,13 @@ if __name__ == '__main__':
 
     params_list = []
     params_list = group_weight(params_list, model, nn.BatchNorm2d, p['lr'])
+    grouped_ids = {id(param) for group in params_list for param in group['params']}
+    missing_adapter = [name for name, param in model.backbone.depth_adapters.named_parameters()
+                       if id(param) not in grouped_ids]
+    if missing_adapter:
+        raise RuntimeError(f'Adapter parameters missing from optimizer: {missing_adapter}')
+    print('Depth-only adapter parameters in optimizer:',
+          sum(param.numel() for param in model.backbone.depth_adapters.parameters()))
 
     optimizer = torch.optim.AdamW(params_list, lr=p['lr'], betas=(0.9, 0.999),weight_decay=p['wd'])
 
@@ -203,7 +222,8 @@ if __name__ == '__main__':
                         datetime.datetime.now(), epoch+1, config.epoch, i+1, iter_num, loss_all / (i + 1)))
                 print('Learning rate: ' + str(optimizer.param_groups[0]['lr']))
             if config.max_steps and steps_done >= config.max_steps:
-                optimizer.step()
+                if (i + 1) % accumulation_steps:
+                    optimizer.step()
                 optimizer.zero_grad()
                 checkpoint_path = os.path.join(config.save_fold, 'smoke_step.pth')
                 torch.save(model.state_dict(), checkpoint_path)
